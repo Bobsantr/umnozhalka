@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#FFF4D6">
+<title>Умножалка</title>
+<style>
+:root{
+  --bg:#FFF4D6; --ink:#2B2D42; --muted:#8A8FA8; --line:#EADFB8;
+  --orange:#FF7A3D; --orange-d:#D65A1E;
+  --blue:#3A86FF; --blue-d:#2460C9;
+  --green:#22B573; --green-d:#168A56;
+  --red:#EF476F; --red-d:#BC2B50;
+  --yellow:#FFC93C;
+  --shadow:#E6D8AC;
+  --radius:22px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg)}
+body{
+  color:var(--ink);
+  font-family:ui-rounded,"Nunito","Trebuchet MS","Segoe UI",Roboto,system-ui,sans-serif;
+  font-weight:700;
+  -webkit-user-select:none;user-select:none;
+  overscroll-behavior:none;touch-action:manipulation;overflow:hidden;
+}
+button{font-family:inherit}
+#app{position:fixed;inset:0}
+
+.screen{
+  position:absolute;top:0;bottom:0;left:0;right:0;width:100%;max-width:520px;margin:0 auto;
+  display:none;flex-direction:column;gap:14px;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 18px calc(env(safe-area-inset-bottom,0px) + 16px);
+}
+.screen.active{display:flex}
+.spacer{flex:1}
+
+/* ---------- кнопки ---------- */
+.btn{
+  --c:var(--blue);--cd:var(--blue-d);
+  border:0;border-radius:var(--radius);background:var(--c);color:#fff;
+  font-size:20px;font-weight:800;padding:15px 20px;flex-shrink:0;
+  box-shadow:0 6px 0 var(--cd);transition:transform .05s,box-shadow .05s;
+}
+.btn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--cd)}
+.btn.orange{--c:var(--orange);--cd:var(--orange-d)}
+.btn.green{--c:var(--green);--cd:var(--green-d)}
+.btn.red{--c:var(--red);--cd:var(--red-d)}
+.btn.ghost{--c:#fff;--cd:var(--shadow);color:var(--ink)}
+.btn.big{font-size:34px;padding:20px;letter-spacing:.04em}
+.icon-btn{
+  width:48px;height:48px;border:0;border-radius:50%;background:#fff;color:var(--ink);
+  font-size:22px;flex-shrink:0;box-shadow:0 4px 0 var(--shadow);
+}
+.icon-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+
+/* ---------- главный экран ---------- */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0}
+.chip{
+  border:0;background:#fff;border-radius:999px;padding:11px 18px;font-size:18px;font-weight:800;
+  color:var(--ink);box-shadow:0 4px 0 var(--shadow);max-width:72%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.chip:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.hero{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.rocket{font-size:64px;line-height:1;animation:float 2.4s ease-in-out infinite}
+h1{margin:6px 0 2px;font-size:38px;font-weight:900}
+.hero p{margin:0;color:var(--muted);font-size:16px}
+.formats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;flex-shrink:0}
+.fcard{
+  border:3px solid transparent;border-radius:var(--radius);background:#fff;color:var(--ink);
+  padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;
+  box-shadow:0 5px 0 var(--shadow);
+}
+.fcard .fnum{font-size:32px;font-weight:900;line-height:1.1}
+.fcard .fname{font-size:16px}
+.fcard .fbest{font-size:13px;color:var(--muted);margin-top:1px}
+.fcard.sel{border-color:var(--orange);background:#FFF0E6;transform:translateY(-2px)}
+.fcard.sel .fbest{color:var(--orange-d)}
+
+/* ---------- игра ---------- */
+.gtop{display:flex;align-items:center;gap:12px;flex-shrink:0;position:relative;z-index:6}
+.progress{flex:1;height:16px;background:#fff;border-radius:999px;overflow:hidden;box-shadow:inset 0 2px 0 rgba(0,0,0,.06)}
+.bar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--yellow),var(--orange));transition:width .25s}
+.count{min-width:64px;text-align:right;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.timer{text-align:center;font-size:44px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;flex-shrink:0;transition:color .2s}
+.timer.low{color:var(--red)}
+.qarea{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.qcard{
+  width:100%;text-align:center;background:#fff;border:4px solid transparent;border-radius:30px;
+  padding:16px 24px 20px;box-shadow:0 8px 0 var(--shadow);transition:border-color .1s,background .1s;
+}
+.q{font-size:clamp(48px,15vw,84px);font-weight:900;line-height:1.05;letter-spacing:.02em}
+.ans{
+  margin:6px auto 0;min-width:140px;max-width:220px;min-height:1.25em;line-height:1.25;
+  font-size:clamp(44px,13vw,72px);font-weight:900;color:var(--blue-d);border-bottom:5px solid var(--line);
+}
+.ans:empty::before{content:"?";color:#D9CFA8}
+.warn{
+  width:100%;min-height:46px;display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:8px 14px;border-radius:14px;background:var(--red);color:#fff;font-size:18px;
+  opacity:0;transform:scale(.92);transition:opacity .12s,transform .12s;
+}
+.warn.show{opacity:1;transform:none}
+.qcard.bad{border-color:var(--red);background:#FFECF0;animation:shake .35s}
+.qcard.good{border-color:var(--green);background:#E9FBF2}
+.ans.shake{animation:shake .35s}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex-shrink:0}
+.key{
+  border:0;border-radius:20px;height:clamp(54px,9.2vh,78px);font-size:clamp(26px,4.6vh,34px);font-weight:900;
+  color:var(--ink);background:#fff;box-shadow:0 5px 0 var(--shadow);
+}
+.key:active,.key.down{transform:translateY(4px);box-shadow:0 1px 0 var(--shadow);background:#FFF8E5}
+.key.fn{background:#FFE3D1;box-shadow:0 5px 0 #F0C4A6}
+.key.fn:active,.key.fn.down{box-shadow:0 1px 0 #F0C4A6;background:#FFE3D1}
+.key.go{background:var(--green);color:#fff;box-shadow:0 5px 0 var(--green-d);font-size:clamp(18px,3.4vh,24px)}
+.key.go:active,.key.go.down{box-shadow:0 1px 0 var(--green-d);background:var(--green)}
+.countdown{
+  position:absolute;left:0;right:0;bottom:0;top:calc(env(safe-area-inset-top,0px) + 76px);z-index:5;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(255,244,214,.97);font-size:150px;font-weight:900;color:var(--orange);
+}
+.countdown.show{display:flex}
+.countdown.small{font-size:64px}
+.countdown.pop{animation:pop .6s ease-out}
+
+/* ---------- результат ---------- */
+.rtitle{text-align:center;font-size:32px;font-weight:900;margin-top:6px}
+.rtime{text-align:center;font-size:64px;font-weight:900;color:var(--orange-d);line-height:1;font-variant-numeric:tabular-nums}
+.rsub{text-align:center;color:var(--muted);font-size:16px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0}
+.stat{background:#fff;border-radius:18px;padding:12px;text-align:center;box-shadow:0 4px 0 var(--shadow)}
+.stat b{display:block;font-size:26px;font-weight:900}
+.stat span{font-size:13px;color:var(--muted)}
+.rnote{background:#fff;border-radius:18px;padding:12px 16px;font-size:16px;line-height:1.4;box-shadow:0 4px 0 var(--shadow);flex-shrink:0}
+.rnote div+div{margin-top:6px}
+
+/* ---------- рекорды и игроки ---------- */
+.hdr{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.hdr h2{margin:0;font-size:28px;font-weight:900;flex:1}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex-shrink:0}
+.tab{border:0;border-radius:16px;background:#fff;padding:11px 2px;font-size:17px;font-weight:900;white-space:nowrap;color:var(--ink);box-shadow:0 4px 0 var(--shadow)}
+.tab.sel{background:var(--orange);color:#fff;box-shadow:0 4px 0 var(--orange-d)}
+.fname-line{text-align:center;color:var(--muted);font-size:16px;flex-shrink:0;margin-top:-4px}
+.seg{display:flex;gap:4px;padding:4px;background:#fff;border-radius:999px;box-shadow:0 4px 0 var(--shadow);flex-shrink:0}
+.seg button{flex:1;border:0;border-radius:999px;background:transparent;padding:9px 6px;font-size:16px;font-weight:800;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg button.sel{background:var(--blue);color:#fff}
+.rows{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto;padding:2px 2px 6px}
+.row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 3px 0 var(--shadow)}
+.row.me{outline:3px solid var(--yellow)}
+.row .rk{font-size:22px;text-align:center}
+.row .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px}
+.row .nm small,.row .tm small{display:block;color:var(--muted);font-size:12px;font-weight:700}
+.row .tm{text-align:right;font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:18px}
+.addrow{display:flex;gap:10px;flex-shrink:0}
+.addrow input{
+  flex:1;min-width:0;border:3px solid var(--line);border-radius:18px;padding:12px 14px;background:#fff;
+  font-family:inherit;font-size:20px;font-weight:800;color:var(--ink);outline:none;
+  -webkit-user-select:text;user-select:text;
+}
+.addrow input:focus{border-color:var(--blue)}
+.err{color:var(--red-d);font-size:15px;min-height:20px;flex-shrink:0;margin-top:-6px}
+.prow{display:flex;gap:8px}
+.pbtn{
+  flex:1;min-width:0;text-align:left;border:0;border-radius:18px;background:#fff;color:var(--ink);padding:14px 16px;
+  font-size:20px;font-weight:800;box-shadow:0 4px 0 var(--shadow);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pbtn.cur{background:#E8F1FF;outline:3px solid var(--blue)}
+.pdel{width:52px;border:0;border-radius:18px;background:#fff;font-size:22px;box-shadow:0 4px 0 var(--shadow)}
+
+/* ---------- окно ---------- */
+.modal{position:fixed;inset:0;background:rgba(43,45,66,.5);display:none;align-items:center;justify-content:center;padding:24px;z-index:30}
+.modal.show{display:flex}
+.mbox{background:#fff;border-radius:28px;padding:24px 20px 20px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 0 rgba(0,0,0,.12)}
+.mtitle{font-size:28px;font-weight:900;margin-bottom:6px}
+.mtext{font-size:17px;color:var(--muted);margin-bottom:18px;line-height:1.35}
+.mbtns{display:flex;flex-direction:column;gap:12px}
+.mbtns .btn.ghost{box-shadow:0 6px 0 var(--shadow)}
+
+/* ---------- конфетти ---------- */
+#confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:20}
+.conf{position:absolute;top:-50px;animation:fall 2.4s linear forwards}
+
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.1);opacity:1}100%{transform:scale(1)}}
+@keyframes float{50%{transform:translateY(-8px) rotate(-4deg)}}
+@keyframes fall{to{transform:translateY(115vh) rotate(540deg)}}
+@media (prefers-reduced-motion:reduce){.rocket,.conf{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ГЛАВНЫЙ ЭКРАН -->
+  <section id="home" class="screen active">
+    <div class="topbar">
+      <button class="chip" id="playerChip"></button>
+      <button class="icon-btn" id="soundBtn" aria-label="Звук и вибрация">🔊</button>
+    </div>
+    <div class="hero">
+      <div class="rocket">🚀</div>
+      <h1>Умножалка</h1>
+      <p>Таблица умножения на скорость</p>
+    </div>
+    <div class="formats" id="formats"></div>
+    <button class="btn orange big" id="startBtn">СТАРТ</button>
+    <button class="btn ghost" id="recordsBtn">🏆 Рекорды</button>
+  </section>
+
+  <!-- ИГРА -->
+  <section id="game" class="screen">
+    <div class="gtop">
+      <button class="icon-btn" id="quitBtn" aria-label="Пауза">⏸</button>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="count" id="count">1/10</div>
+    </div>
+    <div class="timer" id="timer">0:00.0</div>
+    <div class="qarea">
+      <div class="qcard" id="qcard">
+        <div class="q" id="question"></div>
+        <div class="ans" id="answer"></div>
+      </div>
+      <div class="warn" id="warn"></div>
+    </div>
+    <div class="keypad" id="keypad"></div>
+    <div class="countdown" id="countdown"></div>
+  </section>
+
+  <!-- РЕЗУЛЬТАТ -->
+  <section id="result" class="screen">
+    <div class="rtitle" id="rTitle"></div>
+    <div class="rtime" id="rTime"></div>
+    <div class="rsub" id="rSub"></div>
+    <div class="stats" id="rStats"></div>
+    <div class="rnote" id="rNote"></div>
+    <div class="spacer"></div>
+    <button class="btn orange" id="againBtn">Ещё раз 🔁</button>
+    <button class="btn" id="rRecordsBtn">🏆 Рекорды</button>
+    <button class="btn ghost" id="rHomeBtn">Домой</button>
+  </section>
+
+  <!-- РЕКОРДЫ -->
+  <section id="records" class="screen">
+    <div class="hdr">
+      <button class="icon-btn" id="recBack" aria-label="Назад">←</button>
+      <h2>Рекорды 🏆</h2>
+    </div>
+    <div class="tabs" id="rTabs"></div>
+    <div class="fname-line" id="recFmtName"></div>
+    <div class="seg" id="recSeg"></div>
+    <div class="rows" id="recRows"></div>
+  </section>
+
+  <!-- ИГРОКИ -->
+  <section id="players" class="screen">
+    <div class="hdr">
+      <button class="icon-btn" id="pBack" aria-label="Назад">←</button>
+      <h2 id="pTitle">Кто играет?</h2>
+    </div>
+    <div class="addrow">
+      <input id="nameInput" type="text" maxlength="12" autocomplete="off" autocapitalize="words" placeholder="Новое имя">
+      <button class="btn green" id="addBtn" style="padding:12px 18px">＋</button>
+    </div>
+    <div class="err" id="nameErr"></div>
+    <div class="rows" id="plist"></div>
+  </section>
+
+</div>
+
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mtitle" id="mTitle"></div>
+    <div class="mtext" id="mText"></div>
+    <div class="mbtns" id="mBtns"></div>
+  </div>
+</div>
+<div id="confetti"></div>
+
+<script>
+(() => {
+'use strict';
+
+const FORMATS = [
+  {id:'10', n:10, name:'Разминка', emo:'🐣'},
+  {id:'20', n:20, name:'Классика', emo:'🏃'},
+  {id:'64', n:64, name:'Марафон',  emo:'🚀'},
+  {id:'t60', n:0, secs:60, name:'На время', emo:'⏱'}   // сколько примеров за 1 минуту
+];
+function fdesc(f){ return f.secs ? 'На время · 1 минута' : f.name + ' · ' + f.n + ' ' + plural(f.n); }
+const KEY = 'umnozhalka.v1';
+const $ = id => document.getElementById(id);
+
+function h(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = String(text);
+  return e;
+}
+function plural(n){               // 10 примеров, 64 примера
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'пример';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'примера';
+  return 'примеров';
+}
+
+/* ================= хранилище ================= */
+function defaults(){
+  const records = {};
+  FORMATS.forEach(f => { records[f.id] = []; });
+  return {players:[], current:null, format:'20', sound:true, records};
+}
+function load(){
+  const d = defaults();
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && typeof s === 'object'){
+      if (Array.isArray(s.players)) d.players = s.players.filter(x => typeof x === 'string');
+      if (typeof s.current === 'string' && d.players.includes(s.current)) d.current = s.current;
+      if (FORMATS.some(f => f.id === s.format)) d.format = s.format;
+      if (typeof s.sound === 'boolean') d.sound = s.sound;
+      if (s.records) FORMATS.forEach(f => { if (Array.isArray(s.records[f.id])) d.records[f.id] = s.records[f.id]; });
+    }
+  }catch(e){}
+  if (!d.current && d.players.length) d.current = d.players[0];
+  return d;
+}
+let store = load();
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+
+/* ================= форматирование ================= */
+function fmt(ms, digits){         // 1 знак по умолчанию, 2 — для результата
+  const d = digits === 2 ? 2 : 1;
+  const per = d === 2 ? 100 : 10;
+  const t = Math.floor(ms / (1000 / per));
+  const frac = t % per, secs = Math.floor(t / per);
+  return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') + '.' + String(frac).padStart(d, '0');
+}
+function fmtDate(ts){
+  try{ return new Date(ts).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit', year:'2-digit'}); }
+  catch(e){ return ''; }
+}
+
+/* ================= рекорды ================= */
+// Обычные форматы: меньше время — лучше. «На время»: больше решено — лучше.
+function cmpFor(fid){
+  const f = FORMATS.find(x => x.id === fid);
+  return f.secs
+    ? (a, b) => b.score - a.score || a.errors - b.errors || a.date - b.date
+    : (a, b) => a.time - b.time || a.errors - b.errors || a.date - b.date;
+}
+function bestFor(name, fid){
+  return store.records[fid].find(r => r.name === name) || null;   // список отсортирован
+}
+function addRecord(fid, rec){
+  const list = store.records[fid];
+  list.push(rec);
+  list.sort(cmpFor(fid));
+  const seen = {};
+  store.records[fid] = list.filter(r => (seen[r.name] = (seen[r.name] || 0) + 1) <= 10);
+  save();
+}
+
+/* ================= звук и вибрация ================= */
+let ac = null;
+function ensureAudio(){
+  try{
+    if (!ac){ const C = window.AudioContext || window.webkitAudioContext; if (C) ac = new C(); }
+    if (ac && ac.state === 'suspended') ac.resume();
+  }catch(e){}
+}
+function tone(freq, dur, type, vol, delay){
+  if (!store.sound || !ac) return;
+  try{
+    const t = ac.currentTime + (delay || 0);
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || .12, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t); o.stop(t + dur + .02);
+  }catch(e){}
+}
+const sfx = {
+  tap(){ tone(520, .04, 'triangle', .05); },
+  ok(){ tone(660, .09, 'sine', .14); tone(880, .12, 'sine', .14, .08); },
+  bad(){ tone(190, .25, 'sawtooth', .10); },
+  count(){ tone(440, .12, 'square', .07); },
+  go(){ tone(880, .25, 'square', .08); },
+  win(){ [523, 659, 784, 1047].forEach((f, i) => tone(f, .2, 'triangle', .15, i * .12)); }
+};
+function vib(p){ if (store.sound && navigator.vibrate){ try{ navigator.vibrate(p); }catch(e){} } }
+
+/* ================= навигация ================= */
+let screen = 'home';
+function show(name){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === name));
+  screen = name;
+  if (name !== 'home' && !(history.state && history.state.s)) history.pushState({s:1}, '');
+}
+function back(){
+  if (history.state && history.state.s) history.back(); else goHome();
+}
+function goHome(){
+  if (!store.current){ renderPlayers(); show('players'); return; }
+  renderHome(); show('home');
+}
+
+/* ================= окно ================= */
+let modalOn = false, modalCancelFn = null;
+function openModal(o){
+  $('mTitle').textContent = o.title;
+  $('mText').textContent = o.text || '';
+  const box = $('mBtns'); box.innerHTML = '';
+  o.buttons.forEach(b => {
+    const el = h('button', 'btn ' + (b.cls || ''), b.label);
+    el.onclick = () => { closeModal(); if (b.fn) b.fn(); };
+    box.append(el);
+  });
+  modalCancelFn = o.onCancel || null;
+  modalOn = true;
+  $('modal').classList.add('show');
+}
+function closeModal(){ modalOn = false; $('modal').classList.remove('show'); }
+function cancelModal(){ const c = modalCancelFn; closeModal(); modalCancelFn = null; if (c) c(); }
+$('modal').addEventListener('pointerdown', e => { if (e.target === $('modal')) cancelModal(); });
+
+/* ================= главный экран ================= */
+function renderHome(){
+  $('playerChip').textContent = '👤 ' + store.current + ' ▾';
+  $('soundBtn').textContent = store.sound ? '🔊' : '🔇';
+  const box = $('formats'); box.innerHTML = '';
+  FORMATS.forEach(f => {
+    const best = bestFor(store.current, f.id);
+    const b = h('button', 'fcard' + (f.id === store.format ? ' sel' : ''));
+    b.append(h('div', 'fnum', f.secs ? '1:00' : f.n), h('div', 'fname', f.emo + ' ' + f.name),
+             h('div', 'fbest', best ? (f.secs ? '🎯 решено ' + best.score : '⏱ ' + fmt(best.time)) : 'нет рекорда'));
+    b.onclick = () => { store.format = f.id; save(); renderHome(); sfx.tap(); };
+    box.append(b);
+  });
+}
+
+/* ================= игроки ================= */
+function renderPlayers(){
+  const first = !store.current;
+  $('pTitle').textContent = first ? 'Как тебя зовут?' : 'Кто играет?';
+  $('pBack').style.visibility = first ? 'hidden' : 'visible';
+  $('nameErr').textContent = '';
+  const box = $('plist'); box.innerHTML = '';
+  store.players.forEach(name => {
+    const row = h('div', 'prow');
+    const b = h('button', 'pbtn' + (name === store.current ? ' cur' : ''), (name === store.current ? '✓ ' : '') + name);
+    b.onclick = () => { store.current = name; save(); back(); };
+    const d = h('button', 'pdel', '🗑');
+    d.setAttribute('aria-label', 'Удалить игрока');
+    d.onclick = () => confirmDelete(name);
+    row.append(b, d); box.append(row);
+  });
+}
+function addPlayer(){
+  const inp = $('nameInput'), err = $('nameErr');
+  const name = inp.value.trim().replace(/\s+/g, ' ');
+  if (!name){ err.textContent = 'Введи имя'; return; }
+  if (store.players.some(p => p.toLowerCase() === name.toLowerCase())){ err.textContent = 'Такой игрок уже есть'; return; }
+  store.players.push(name); store.current = name; save();
+  inp.value = ''; inp.blur();
+  back();
+}
+function confirmDelete(name){
+  openModal({
+    title:'Удалить игрока?',
+    text:'«' + name + '» и все его рекорды будут удалены.',
+    buttons:[
+      {label:'Удалить', cls:'red', fn:() => {
+        store.players = store.players.filter(p => p !== name);
+        FORMATS.forEach(f => { store.records[f.id] = store.records[f.id].filter(r => r.name !== name); });
+        if (store.current === name) store.current = store.players[0] || null;
+        save(); renderPlayers();
+      }},
+      {label:'Отмена', cls:'ghost'}
+    ]
+  });
+}
+
+/* ================= таблица рекордов ================= */
+let recTab = '20', recMine = false;
+function openRecords(){ recTab = store.format; recMine = false; renderRecords(); show('records'); }
+function renderRecords(){
+  const f = FORMATS.find(x => x.id === recTab);
+  const tabs = $('rTabs'); tabs.innerHTML = '';
+  FORMATS.forEach(x => {
+    const b = h('button', 'tab' + (x.id === recTab ? ' sel' : ''), x.secs ? '⏱ 1:00' : x.emo + ' ' + x.n);
+    b.onclick = () => { recTab = x.id; renderRecords(); };
+    tabs.append(b);
+  });
+  $('recFmtName').textContent = fdesc(f);
+  const seg = $('recSeg'); seg.innerHTML = '';
+  [['Все игроки', false], ['Только ' + store.current, true]].forEach(([label, mine]) => {
+    const b = h('button', mine === recMine ? 'sel' : '', label);
+    b.onclick = () => { recMine = mine; renderRecords(); };
+    seg.append(b);
+  });
+  let list = store.records[recTab].slice();
+  if (recMine) list = list.filter(r => r.name === store.current);
+  list = list.slice(0, 10);
+  const rows = $('recRows'); rows.innerHTML = '';
+  if (!list.length){ rows.append(h('div', 'empty', 'Пока пусто. Пробеги первую гонку! 🚀')); return; }
+  const medals = ['🥇', '🥈', '🥉'];
+  list.forEach((r, i) => {
+    const row = h('div', 'row' + (r.name === store.current ? ' me' : ''));
+    const nm = h('div', 'nm', r.name); nm.append(h('small', '', fmtDate(r.date)));
+    const tm = h('div', 'tm', f.secs ? r.score : fmt(r.time, 2));
+    const errTxt = r.errors === 0 ? 'без ошибок' : 'ошибок: ' + r.errors;
+    tm.append(h('small', '', f.secs ? 'решено · ' + errTxt : errTxt));
+    row.append(h('div', 'rk', medals[i] || String(i + 1)), nm, tm);
+    rows.append(row);
+  });
+}
+
+/* ================= игра ================= */
+let game = null;
+const WARNS = ['Неверно! Попробуй ещё раз', 'Не то! Подумай и введи снова', 'Ой, ошибка! Ещё разок'];
+
+function shuffle(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function allPairs(){
+  const all = [];
+  for (let a = 2; a <= 9; a++) for (let b = 2; b <= 9; b++) all.push([a, b]);
+  return all;
+}
+function buildQuestions(n){ return shuffle(allPairs()).slice(0, n); }
+function extendQs(g){              // режим «на время»: примеры не кончаются
+  const more = shuffle(allPairs());
+  const last = g.qs[g.qs.length - 1];
+  if (last && more[0][0] === last[0] && more[0][1] === last[1]) [more[0], more[1]] = [more[1], more[0]];
+  g.qs.push(...more);
+}
+
+function startGame(){
+  const f = FORMATS.find(x => x.id === store.format);
+  ensureAudio();
+  const timed = !!f.secs;
+  game = {fmt:f, timed, total:(f.secs || 0) * 1000, qs:buildQuestions(timed ? 64 : f.n), i:0, input:'', errors:0,
+          mistakes:{}, t0:0, pausedAt:0, phase:'count', tick:null, cd:null, beep:-1};
+  $('qcard').style.visibility = 'hidden';
+  $('qcard').classList.remove('bad', 'good');
+  $('warn').classList.remove('show');
+  $('timer').classList.remove('low');
+  $('timer').textContent = fmt(timed ? game.total : 0);
+  renderAnswer(); updateProgress();
+  if (timed) $('bar').style.width = '100%';
+  show('game');
+  runCountdown();
+}
+function stopGame(){
+  if (!game) return;
+  clearInterval(game.tick); clearTimeout(game.cd);
+  game.phase = 'stopped';
+  $('countdown').classList.remove('show', 'small');
+  game = null;
+}
+function runCountdown(){
+  const g = game, el = $('countdown'), steps = ['3', '2', '1'];
+  let i = 0;
+  el.classList.add('show');
+  (function step(){
+    if (game !== g || g.phase !== 'count') return;
+    if (i < steps.length){
+      el.textContent = steps[i++];
+      el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+      sfx.count();
+      g.cd = setTimeout(step, 700);
+    } else {
+      el.classList.remove('show');
+      g.phase = 'run'; g.t0 = performance.now();
+      renderQuestion(); $('qcard').style.visibility = 'visible';
+      sfx.go(); startTick(g);
+    }
+  })();
+}
+function startTick(g){
+  clearInterval(g.tick);
+  g.tick = setInterval(() => {
+    const el = performance.now() - g.t0;
+    if (!g.timed){ $('timer').textContent = fmt(el); return; }
+    const left = g.total - el;
+    if (left <= 0){ timeUp(g); return; }
+    $('timer').textContent = fmt(left);
+    $('bar').style.width = (left / g.total * 100) + '%';
+    const sec = Math.ceil(left / 1000);
+    $('timer').classList.toggle('low', sec <= 10);
+    if (sec <= 5 && sec !== g.beep){ g.beep = sec; sfx.count(); }   // тикает последние 5 секунд
+  }, 50);
+}
+function timeUp(g){
+  if (game !== g || g.phase !== 'run') return;
+  clearInterval(g.tick);
+  g.phase = 'end';
+  $('timer').textContent = fmt(0); $('timer').classList.add('low'); $('bar').style.width = '0%';
+  const el = $('countdown');
+  el.textContent = 'Время!'; el.classList.add('show', 'small');
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  sfx.go(); vib(200);
+  g.cd = setTimeout(finishTimed, 1000);
+}
+function renderQuestion(){
+  const [a, b] = game.qs[game.i];
+  $('question').textContent = a + ' × ' + b + ' =';
+}
+function renderAnswer(){ $('answer').textContent = game ? game.input : ''; }
+function updateProgress(){
+  const g = game;
+  if (g.timed){ $('count').textContent = 'Решено: ' + g.i; return; }
+  $('bar').style.width = (g.i / g.qs.length * 100) + '%';
+  $('count').textContent = Math.min(g.i + 1, g.qs.length) + '/' + g.qs.length;
+}
+function flash(el, cls, ms){
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+
+function press(k){
+  const g = game;
+  if (!g || g.phase !== 'run') return;
+  if (k === 'ok'){ submit(); return; }
+  if (k === 'bk'){
+    if (!g.input) return;
+    g.input = g.input.slice(0, -1);
+  } else {
+    if (g.input.length >= 2) return;
+    if (g.input === '' && k === '0') return;
+    g.input += k;
+    $('warn').classList.remove('show');
+  }
+  sfx.tap(); renderAnswer();
+}
+
+function submit(){
+  const g = game;
+  if (g.input === ''){ flash($('answer'), 'shake', 350); return; }
+  const [a, b] = g.qs[g.i];
+  if (parseInt(g.input, 10) === a * b){
+    g.i++;
+    g.input = '';
+    $('warn').classList.remove('show');
+    if (g.timed){ if (g.i >= g.qs.length - 1) extendQs(g); }
+    else if (g.i >= g.qs.length){ finish(); return; }
+    renderQuestion(); renderAnswer(); updateProgress();
+    flash($('qcard'), 'good', 220);
+    sfx.ok();
+  } else {
+    g.errors++;
+    const key = a + '×' + b;
+    g.mistakes[key] = (g.mistakes[key] || 0) + 1;
+    g.input = ''; renderAnswer();
+    const w = $('warn'); w.textContent = WARNS[(g.errors - 1) % WARNS.length]; w.classList.add('show');
+    flash($('qcard'), 'bad', 400);
+    sfx.bad(); vib(120);
+  }
+}
+
+function pauseGame(){
+  const g = game;
+  if (!g) return;
+  if (g.phase === 'count'){ stopGame(); back(); return; }
+  if (g.phase !== 'run') return;
+  g.phase = 'pause'; g.pausedAt = performance.now(); clearInterval(g.tick);
+  openModal({
+    title:'Пауза ⏸', text:'Время остановлено.',
+    buttons:[
+      {label:'Продолжить ▶', cls:'green', fn:resumeGame},
+      {label:'Выйти из забега', cls:'ghost', fn:() => { stopGame(); back(); }}
+    ],
+    onCancel:resumeGame
+  });
+}
+function resumeGame(){
+  const g = game;
+  if (!g || g.phase !== 'pause') return;
+  g.t0 += performance.now() - g.pausedAt;
+  g.phase = 'run'; startTick(g);
+}
+
+function finish(){
+  const g = game;
+  const elapsed = Math.round(performance.now() - g.t0);
+  const f = g.fmt, name = store.current;
+  const prev = bestFor(name, f.id);
+  const rec = {name, time:elapsed, errors:g.errors, date:Date.now()};
+  addRecord(f.id, rec);
+  const rank = store.records[f.id].indexOf(rec) + 1;
+  const mistakes = Object.entries(g.mistakes).sort((x, y) => y[1] - x[1]).slice(0, 3);
+  const info = {f, rec, rank, prev, isPB:!prev || elapsed < prev.time, mistakes};
+  stopGame();
+  showResult(info);
+}
+
+function finishTimed(){
+  const g = game;
+  if (!g || g.phase !== 'end') return;
+  const f = g.fmt, score = g.i;
+  const prev = bestFor(store.current, f.id);
+  const rec = {name:store.current, score, errors:g.errors, date:Date.now()};
+  let rank = 0;
+  if (score > 0){ addRecord(f.id, rec); rank = store.records[f.id].indexOf(rec) + 1; }
+  const mistakes = Object.entries(g.mistakes).sort((x, y) => y[1] - x[1]).slice(0, 3);
+  const info = {f, rec, rank, prev, mistakes, isPB:score > 0 && (!prev || score > prev.score)};
+  stopGame();
+  showTimedResult(info);
+}
+
+function showTimedResult(r){
+  const sc = r.rec.score;
+  $('rTitle').textContent = r.isPB ? '🏆 Новый рекорд!' : '⏰ Время вышло!';
+  $('rTime').textContent = String(sc);
+  $('rSub').textContent = plural(sc) + ' за 1 минуту';
+
+  const st = $('rStats'); st.innerHTML = '';
+  const s1 = h('div', 'stat'); s1.append(h('b', '', r.rec.errors === 0 ? '0 ⭐' : r.rec.errors), h('span', '', 'ошибок'));
+  const s2 = h('div', 'stat');
+  s2.append(h('b', '', sc > 0 ? (60 / sc).toFixed(1).replace('.', ',') + ' с' : '—'), h('span', '', 'на один пример'));
+  st.append(s1, s2);
+
+  const note = $('rNote'); note.innerHTML = '';
+  if (sc === 0) note.append(h('div', '', 'Ни один пример не засчитан. Не страшно, попробуй ещё раз!'));
+  else if (r.isPB) note.append(h('div', '', r.prev ? 'Рекорд улучшен: было ' + r.prev.score + ', стало ' + sc + '! 🎉' : 'Первый рекорд записан! 🎉'));
+  else {
+    const d = r.prev.score - sc;
+    note.append(h('div', '', d === 0 ? 'Ты повторил свой рекорд: ' + sc + '!' : 'Твой рекорд: ' + r.prev.score + '. До него не хватило ' + d + ' ' + plural(d) + '.'));
+  }
+  if (r.rank > 0 && r.rank <= 10) note.append(h('div', '', 'Место в таблице рекордов: №' + r.rank + '.'));
+  if (r.mistakes.length) note.append(h('div', '', 'Потренируй: ' + r.mistakes.map(([k, c]) => c > 1 ? k + ' (×' + c + ')' : k).join(', ') + '.'));
+  else if (sc > 0) note.append(h('div', '', 'Ни одной ошибки — отлично!'));
+
+  show('result');
+  if (r.isPB){ sfx.win(); confetti(); } else sfx.ok();
+}
+
+function showResult(r){
+  const sec = ms => (ms / 1000).toFixed(1).replace('.', ',');
+  $('rTitle').textContent = r.isPB ? '🏆 Новый рекорд!' : '🏁 Финиш!';
+  $('rTime').textContent = fmt(r.rec.time, 2);
+  $('rSub').textContent = fdesc(r.f);
+
+  const st = $('rStats'); st.innerHTML = '';
+  const s1 = h('div', 'stat'); s1.append(h('b', '', r.rec.errors === 0 ? '0 ⭐' : r.rec.errors), h('span', '', 'ошибок'));
+  const s2 = h('div', 'stat'); s2.append(h('b', '', sec(r.rec.time / r.f.n) + ' с'), h('span', '', 'на один пример'));
+  st.append(s1, s2);
+
+  const note = $('rNote'); note.innerHTML = '';
+  if (r.isPB) note.append(h('div', '', r.prev ? 'Рекорд улучшен на ' + sec(r.prev.time - r.rec.time) + ' с! 🎉' : 'Первый рекорд записан! 🎉'));
+  else note.append(h('div', '', 'Твой рекорд: ' + fmt(r.prev.time, 2) + '. Не хватило ' + sec(r.rec.time - r.prev.time) + ' с.'));
+  if (r.rank > 0 && r.rank <= 10) note.append(h('div', '', 'Место в таблице рекордов: №' + r.rank + '.'));
+  if (r.mistakes.length) note.append(h('div', '', 'Потренируй: ' + r.mistakes.map(([k, c]) => c > 1 ? k + ' (×' + c + ')' : k).join(', ') + '.'));
+  else note.append(h('div', '', 'Ни одной ошибки — отлично!'));
+
+  show('result');
+  sfx.win();
+  if (r.isPB) confetti();
+}
+
+function confetti(){
+  const box = $('confetti'); box.innerHTML = '';
+  const em = ['🎉', '⭐', '🎊', '✨', '🏆'];
+  for (let i = 0; i < 28; i++){
+    const s = h('span', 'conf', em[i % em.length]);
+    s.style.left = Math.random() * 100 + '%';
+    s.style.animationDelay = (Math.random() * .8) + 's';
+    s.style.fontSize = (18 + Math.random() * 18) + 'px';
+    box.append(s);
+  }
+  setTimeout(() => { box.innerHTML = ''; }, 3600);
+}
+
+/* ================= экранная клавиатура ================= */
+function buildKeypad(){
+  const kp = $('keypad');
+  ['1','2','3','4','5','6','7','8','9','bk','0','ok'].forEach(k => {
+    const b = h('button', 'key' + (k === 'bk' ? ' fn' : '') + (k === 'ok' ? ' go' : ''),
+                k === 'bk' ? '⌫' : k === 'ok' ? 'Ввод' : k);
+    b.setAttribute('aria-label', k === 'bk' ? 'Стереть' : k === 'ok' ? 'Ввод' : k);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('down'); press(k); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => b.classList.remove('down')));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    kp.append(b);
+  });
+}
+
+/* ================= запуск ================= */
+function init(){
+  buildKeypad();
+
+  $('playerChip').onclick = () => { renderPlayers(); show('players'); };
+  $('soundBtn').onclick = () => { store.sound = !store.sound; save(); renderHome(); ensureAudio(); sfx.tap(); };
+  $('startBtn').onclick = () => { if (!store.current){ renderPlayers(); show('players'); return; } startGame(); };
+  $('recordsBtn').onclick = openRecords;
+
+  $('quitBtn').onclick = pauseGame;
+  $('againBtn').onclick = startGame;
+  $('rRecordsBtn').onclick = openRecords;
+  $('rHomeBtn').onclick = back;
+  $('recBack').onclick = back;
+  $('pBack').onclick = back;
+  $('addBtn').onclick = addPlayer;
+  $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
+
+  // Кнопка «назад» на Android и стрелка в браузере
+  window.addEventListener('popstate', () => {
+    if (modalOn){ cancelModal(); history.pushState({s:1}, ''); return; }
+    if (screen === 'game' && game){
+      if (game.phase === 'run'){ pauseGame(); history.pushState({s:1}, ''); return; }
+      if (game.phase === 'count' || game.phase === 'end') stopGame();
+    }
+    if (!store.current) return;
+    goHome();
+  });
+
+  // Свернули приложение посреди забега — ставим на паузу
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden || !game) return;
+    if (game.phase === 'run') pauseGame();
+    else if (game.phase === 'count'){ stopGame(); back(); }
+  });
+
+  // Физическая клавиатура (для проверки на компьютере)
+  document.addEventListener('keydown', e => {
+    if (screen !== 'game' || !game) return;
+    if (e.key.length === 1 && e.key >= '0' && e.key <= '9') press(e.key);
+    else if (e.key === 'Backspace') press('bk');
+    else if (e.key === 'Enter') press('ok');
+  });
+
+  goHome();
+}
+init();
+})();
+</script>
+</body>
+</html>

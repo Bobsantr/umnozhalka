@@ -1,0 +1,11 @@
+{
+  "name": "umnozhalka",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Умножалка — таблица умножения на скорость",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/core": "latest"
+  }
+}
